@@ -1,5 +1,2 @@
-pub mod chatcom_sse;
-pub mod chatcom;
+pub mod openai;
 
-pub use chatcom_sse::ChatCompletionChunk;
-pub use chatcom::ChatCompletionsBuilder;
