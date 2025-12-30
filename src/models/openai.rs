@@ -108,10 +108,10 @@ pub enum ResponseFormat {
 pub struct CompletionRequest {
     pub model: String,
     pub messages: Vec<Message>,
-    
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub stream: Option<bool>,
-    
+
     // Sampling parameters
     #[serde(skip_serializing_if = "Option::is_none")]
     pub temperature: Option<f32>,
@@ -121,12 +121,12 @@ pub struct CompletionRequest {
     pub top_k: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub max_tokens: Option<u32>,
-    
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub stop: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub response_format: Option<ResponseFormat>,
-    
+
     // Advanced features
     #[serde(skip_serializing_if = "Option::is_none")]
     pub chat_template_kwargs: Option<Value>,
@@ -335,9 +335,12 @@ impl CompletionResponse {
         self.choices.first().map(|c| c.message.content.as_str())
     }
 
-    /// Consumes the response and returns the first message content.
-    pub fn into_first_content(self) -> Option<String> {
-        self.choices.into_iter().next().map(|c| c.message.content)
+    #[inline]
+    pub fn is_done(&self) -> bool {
+        self.choices
+            .get(0)
+            .map(|c| c.finish_reason.is_some())
+            .unwrap_or(false)
     }
 }
 
@@ -377,12 +380,17 @@ impl CompletionChunk {
     /// Returns the content delta from the first choice.
     #[inline]
     pub fn first_content(&self) -> Option<&str> {
-        self.choices.first().and_then(|c| c.delta.content.as_deref())
+        self.choices
+            .first()
+            .and_then(|c| c.delta.content.as_deref())
     }
 
-    /// Consumes the chunk and returns the first content delta.
-    pub fn into_first_content(self) -> Option<String> {
-        self.choices.into_iter().next().and_then(|c| c.delta.content)
+    #[inline]
+    pub fn is_done(&self) -> bool {
+        self.choices
+            .get(0)
+            .map(|c| c.finish_reason.is_some())
+            .unwrap_or(false)
     }
 }
 

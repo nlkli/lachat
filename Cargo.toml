@@ -7,3 +7,5 @@ edition = "2024"
 minreq = "2"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+libc = "0.2"
+strsim = "0.11"

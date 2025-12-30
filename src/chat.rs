@@ -1,6 +1,6 @@
 use crate::Result;
-use crate::llama_server::{Client, Completion};
-use crate::models::openai::{CompletionRequest, CompletionRequestBuilder, Message};
+use crate::laserv::Client;
+use crate::models::{laserv::Completion, openai::{CompletionRequest, Message}};
 use std::io::{BufRead, BufReader, Read, Write};
 
 pub struct Chat {
