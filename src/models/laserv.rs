@@ -41,6 +41,98 @@ impl Completion {
     }
 }
 
+pub struct LineStream<I>
+where
+    I: Iterator<Item = Completion>,
+{
+    inner: I,
+    buffer: String,
+    done: bool,
+}
+
+impl<I> LineStream<I>
+where
+    I: Iterator<Item = Completion>,
+{
+    pub fn new(inner: I) -> Self {
+        Self {
+            inner,
+            buffer: String::new(),
+            done: false,
+        }
+    }
+}
+
+impl<I> Iterator for LineStream<I>
+where
+    I: Iterator<Item = Completion>,
+{
+    type Item = String;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            if let Some(pos) = self.buffer.find('\n') {
+                let line = self.buffer[..pos].to_string();
+                self.buffer.drain(..=pos);
+                return Some(line);
+            }
+
+            if self.done {
+                if self.buffer.is_empty() {
+                    return None;
+                } else {
+                    return Some(std::mem::take(&mut self.buffer));
+                }
+            }
+
+            match self.inner.next() {
+                Some(c) => {
+                    if let Some(text) = c.first_content() {
+                        self.buffer.push_str(text);
+                    }
+
+                    if c.is_done() {
+                        self.done = true;
+                    }
+                }
+                None => {
+                    self.done = true;
+                }
+            }
+        }
+    }
+}
+
+pub struct CodeBlockStream<I>
+where
+    I: Iterator<Item = Completion>,
+{
+    inner: I,
+}
+
+impl<I> CodeBlockStream<I>
+where
+    I: Iterator<Item = Completion>
+{
+    pub fn new<C>(inner: I) -> Self {
+        Self {
+            inner
+        }
+    }
+}
+
+impl<I> Iterator for CodeBlockStream<I>
+where
+    I: Iterator<Item = Completion>,
+{
+    type Item = String;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        None
+    }
+}
+
+
 #[derive(Clone, Debug, Deserialize)]
 pub struct ModelsResponse {
     pub data: Vec<ModelEntry>,

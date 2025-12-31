@@ -3,8 +3,10 @@ pub struct Args {
     pub host: Option<String>,
     pub port: Option<String>,
     pub model: Option<String>,
-    pub prompt: Option<String>,
+    pub prompt: Vec<String>,
+    pub temperature: Option<String>,
     pub session: Option<String>,
+    pub ctx_size: Option<String>,
     pub chat: Option<String>,
     pub system: Option<String>,
     pub interactive: bool,
@@ -15,8 +17,62 @@ pub struct Args {
 
 const VERSION: &str = "lachat 0.1.0";
 const HELP: &str = r#"
-  -h, --help    Print help
-  -V, --version Print version"#;
+lachat — minimal CLI client for llama-server
+
+EXAMPLES:
+  lachat -m llama3 -p "Hello"
+  lachat --host 127.0.0.1 --port 8080 --interactive
+  lachat -- -ngl 35 -ctx-size 4096
+
+USAGE:
+  lachat [OPTIONS] [-- <LLAMA_SERVER_ARGS>...]
+
+OPTIONS:
+
+  --host <HOST>, -h <HOST>
+          Server host address (IPv4)
+
+  --port <PORT>, -P <PORT>
+          Server port
+
+  --model <MODEL>, -m <MODEL>
+          Model name to use (fuzzy matching)
+
+  --prompt <TEXT>, -p <TEXT>
+          Prompt to send to the model
+
+  --system <TEXT>, -s <TEXT>
+          System prompt (system message)
+
+  --chat <ID>, -c <ID>
+          Chat ID or chat name
+
+  --session <ID>, -S <ID>
+          Session identifier
+
+  --temperature <VALUE>, -t <VALUE>
+          Sampling temperature (float)
+
+  --interactive, -i
+          Run in interactive mode
+
+  --background, -b
+          Run in background mode
+
+  --read-bg, -r
+          Read output from background session
+
+  -h, --help
+          Print this help message and exit
+
+  -V, --version
+          Print version information and exit
+
+PASSTHROUGH ARGUMENTS:
+  -- <ARGS>...
+          All arguments after '--' are passed directly to the llama server
+
+"#;
 
 impl Args {
     pub fn parse() -> Self {
@@ -48,11 +104,20 @@ impl Args {
                     "prompt" => {
                         last.replace('p');
                     }
+                    "temperature" => {
+                        last.replace('t');
+                    }
                     "chat" => {
                         last.replace('c');
                     }
-                    "session" => {
+                    "ctx-size" => {
+                        last.replace('C');
+                    }
+                    "system" => {
                         last.replace('s');
+                    }
+                    "session" => {
+                        last.replace('S');
                     }
                     "interactive" => args.interactive = true,
                     "background" => args.background = true,
@@ -86,12 +151,24 @@ impl Args {
                         last.replace('p');
                         continue;
                     }
+                    "t" => {
+                        last.replace('t');
+                        continue;
+                    }
                     "c" => {
                         last.replace('c');
                         continue;
                     }
+                    "C" => {
+                        last.replace('C');
+                        continue;
+                    }
                     "s" => {
                         last.replace('s');
+                        continue;
+                    }
+                    "S" => {
+                        last.replace('S');
                         continue;
                     }
                     _ => (),
@@ -123,19 +200,23 @@ impl Args {
                                 .ok()
                                 .map(|h| h.to_string());
                         }
-                        'P' => {
-                            args.port = i.as_str().parse::<u16>().ok().map(|v| v.to_string());
-                        }
+                        'P' => args.port = i.parse::<u16>().ok().map(|v| v.to_string()),
                         'm' => {
                             args.model.replace(i);
                         }
                         'p' => {
-                            args.prompt.replace(i);
+                            args.prompt.push(i);
                         }
+                        't' => args.temperature = i.parse::<f32>().ok().map(|v| v.to_string()),
                         'c' => {
                             args.chat.replace(i);
                         }
+                        'C' => args.ctx_size = i.parse::<usize>().ok().map(|v| v.to_string()),
+
                         's' => {
+                            args.system.replace(i);
+                        }
+                        'S' => {
                             args.session.replace(i);
                         }
                         _ => (),
@@ -151,13 +232,14 @@ impl Args {
 
     pub fn get_or<'a>(&'a self, key: &str, default: &'a str) -> &'a str {
         match key {
-            "host" => self.host.as_ref().map_or(default, |a| a.as_str()),
-            "port" => self.port.as_ref().map_or(default, |a| a.as_str()),
-            "model" => self.model.as_ref().map_or(default, |a| a.as_str()),
-            "prompt" => self.prompt.as_ref().map_or(default, |a| a.as_str()),
-            "session" => self.session.as_ref().map_or(default, |a| a.as_str()),
-            "chat" => self.chat.as_ref().map_or(default, |a| a.as_str()),
-            "system" => self.system.as_ref().map_or(default, |a| a.as_str()),
+            "h" => self.host.as_ref().map_or(default, |a| a.as_str()),
+            "P" => self.port.as_ref().map_or(default, |a| a.as_str()),
+            "m" => self.model.as_ref().map_or(default, |a| a.as_str()),
+            "p" => self.prompt.as_ref().map_or(default, |a| a.as_str()),
+            "t" => self.temperature.as_ref().map_or(default, |a| a.as_str()),
+            "S" => self.session.as_ref().map_or(default, |a| a.as_str()),
+            "c" => self.chat.as_ref().map_or(default, |a| a.as_str()),
+            "s" => self.system.as_ref().map_or(default, |a| a.as_str()),
             _ => default,
         }
     }

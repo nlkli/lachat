@@ -1,25 +1,7 @@
 use crate::Result;
 use crate::models::{laserv, openai};
 use crate::sse::SseReader;
-use std::{
-    ffi::OsStr,
-    io::Write,
-    process::{Command, Stdio},
-};
-
-pub fn spawn<I, S>(args: I)
-where
-    I: IntoIterator<Item = S>,
-    S: AsRef<OsStr>,
-{
-    let _ = Command::new("llama-server")
-        .args(args)
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .spawn()
-        .expect("Failed to spawn process");
-}
+use std::io::Write;
 
 #[derive(Clone, Debug)]
 pub struct Client {

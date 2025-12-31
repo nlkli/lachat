@@ -17,16 +17,25 @@ const DEFAULT_PORT: &str = "9909";
 const DEFAULT_SE_PATH: &str = "/tmp/lachat";
 
 fn main() -> Result<()> {
+    let stdin = utils::read_stdin()?;
     let args = cli::Args::parse();
     println!("{:#?}", args);
 
-    let _se = session::Session::new(args.get_or("session", DEFAULT_SE_PATH))?;
+    let _se = session::Session::new(args.get_or("S", DEFAULT_SE_PATH))?;
 
-    let host = args.get_or("host", DEFAULT_HOST);
-    let port = args.get_or("port", DEFAULT_PORT);
+    let host = args.get_or("h", DEFAULT_HOST);
+    let port = args.get_or("P", DEFAULT_PORT);
 
     let client = laserv::Client::new(&format!("{host}:{port}"));
     if !client.health() {
+        process::spawn_detached("llama-server", &[
+            "--host",
+            host,
+            "--port",
+            port,
+            "--sleep-idle-seconds",
+            "3600"
+        ])?;
         // TODO
     }
 
@@ -39,27 +48,43 @@ fn main() -> Result<()> {
         model = utils::fuzzy_search(&available_models.name_list(), m).unwrap_or(model);
     }
 
+    let mut crb = openai::CompletionRequest::builder(model);
     let mut messages = Vec::new();
 
-    if let Some(ref system) = args.system {
-        messages.push(openai::Message::system(system.clone()));
+    if let Some(t) = args
+        .temperature
+        .as_ref()
+        .and_then(|t| t.parse::<f32>().ok())
+        .map(|f| f.abs().max(1.).min(0.))
+    {
+        crb = crb.temperature(t);
     }
 
-    let stdin = utils::read_stdin()?;
+    if let Some(ref system) = args.system {
+        if utils::is_existing_file(system) {
+            let content = std::fs::read_to_string(system)?;
+            messages.push(openai::Message::system(content));
+        } else {
+            messages.push(openai::Message::system(system.clone()));
+        }
+    }
+
     if !stdin.is_empty() {
         messages.push(openai::Message::user(stdin));
     }
 
-    if let Some(ref prompt) = args.prompt {
-        messages.push(openai::Message::user(prompt.clone()));
+    for p in args.prompt.iter() {
+        if utils::is_existing_file(p) {
+            let content = std::fs::read_to_string(p)?;
+            messages.push(openai::Message::user(content));
+        } else {
+            messages.push(openai::Message::user(p.clone()));
+        }
     }
 
     if !messages.is_empty() {
-        let cr = &openai::CompletionRequest::builder(model)
-            .messages(messages)
-            .stream(true)
-            .build();
-        client.write_chat_completions(cr, io::stdout())?;
+        let cr = crb.stream(true).build();
+        client.write_chat_completions(&cr, io::stdout())?;
         println!();
         // TODO background
     }
