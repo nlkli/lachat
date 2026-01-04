@@ -37,10 +37,15 @@ fn main() -> Result<()> {
     let args = cli::Args::parse();
     println!("{:#?}", args);
 
+    launch_llama_server("127.0.0.1", "9909")?;
+
+    return Ok(());
+
     let host = args.get_or("h", DEFAULT_HOST);
     let port = args.get_or("P", DEFAULT_PORT);
 
-    let se = session::Session::new(args.get_or("S", DEFAULT_SE_PATH))?;
+    // ???
+    
     let state = if let Some(st) = se.read_state()? {
         st
     } else {
@@ -50,9 +55,7 @@ fn main() -> Result<()> {
 
     let client = laserv::Client::new(&format!("{host}:{port}"));
     if !client.health() {
-        if let Ok(state) = se.read_state() {}
-
-        // TODO
+        println!("error");
     }
 
     let available_models = client.available_models()?;

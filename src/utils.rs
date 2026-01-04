@@ -1,5 +1,5 @@
-use crate::{Result, models::laserv::Completion};
-use std::{io::{self, Read}, os::fd::AsRawFd};
+use crate::Result;
+use std::{io::{self, Read}, os::fd::AsRawFd, path::Path};
 
 pub fn read_stdin() -> Result<String> {
     let stdin_fd = io::stdin().as_raw_fd();
@@ -58,7 +58,6 @@ pub fn fuzzy_search<'a, 'v>(items: &'v [&'a str], query: &str) -> Option<&'a str
 pub fn is_existing_file(path: &str) -> bool {
     Path::new(path).is_file()
 }
-
 
 #[derive(Debug, Default)]
 pub struct LlmResponse {

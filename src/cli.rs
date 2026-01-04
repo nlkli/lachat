@@ -235,7 +235,6 @@ impl Args {
             "h" => self.host.as_ref().map_or(default, |a| a.as_str()),
             "P" => self.port.as_ref().map_or(default, |a| a.as_str()),
             "m" => self.model.as_ref().map_or(default, |a| a.as_str()),
-            "p" => self.prompt.as_ref().map_or(default, |a| a.as_str()),
             "t" => self.temperature.as_ref().map_or(default, |a| a.as_str()),
             "S" => self.session.as_ref().map_or(default, |a| a.as_str()),
             "c" => self.chat.as_ref().map_or(default, |a| a.as_str()),
