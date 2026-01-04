@@ -9,6 +9,7 @@ use std::path::{Path, PathBuf};
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct State {
     pub llamacpp_pid: u32,
+    pub llamacpp_host: String,
     pub llamacpp_port: u16,
 }
 

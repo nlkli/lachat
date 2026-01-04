@@ -35,28 +35,42 @@ fn launch_llama_server(host: &str, port: &str) -> Result<u32> {
 fn main() -> Result<()> {
     let stdin = utils::read_stdin()?;
     let args = cli::Args::parse();
-    println!("{:#?}", args);
-
-    launch_llama_server("127.0.0.1", "9909")?;
-
-    return Ok(());
 
     let host = args.get_or("h", DEFAULT_HOST);
     let port = args.get_or("P", DEFAULT_PORT);
 
-    // ???
-    
-    let state = if let Some(st) = se.read_state()? {
+    let se = session::Session::new(args.get_or("S", DEFAULT_SE_PATH))?;
+    let mut state = if let Some(st) = se.read_state()? {
+        if args.kill && st.llamacpp_pid != 0 {
+            process::kill_pid(st.llamacpp_pid)?;
+            return Ok(());
+        }
         st
     } else {
         let pid = launch_llama_server(host, port)?;
-        session::State { llamacpp_pid: pid, llamacpp_port: port.parse()? }
+        session::State {
+            llamacpp_pid: pid,
+            llamacpp_host: host.into(),
+            llamacpp_port: port.parse()?,
+        }
     };
 
-    let client = laserv::Client::new(&format!("{host}:{port}"));
-    if !client.health() {
-        println!("error");
+    let u16port = port.parse::<u16>()?;
+    if state.llamacpp_port != u16port || state.llamacpp_host != host {
+        if state.llamacpp_pid != 0 {
+            process::kill_pid(state.llamacpp_pid)?;
+        }
+        state.llamacpp_pid = launch_llama_server(host, port)?;
+        state.llamacpp_host = host.into();
+        state.llamacpp_port = u16port;
     }
+
+    let client = laserv::Client::new(&format!("{}:{}", state.llamacpp_host, state.llamacpp_port));
+    if !client.health() {
+        state.llamacpp_pid = launch_llama_server(host, port)?;
+    }
+
+    se.write_state(&state)?;
 
     let available_models = client.available_models()?;
     if available_models.is_empty() {

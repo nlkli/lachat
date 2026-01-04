@@ -12,6 +12,7 @@ pub struct Args {
     pub interactive: bool,
     pub background: bool,
     pub read_bg: bool,
+    pub kill: bool,
     pub llama_server_args: Vec<String>,
 }
 
@@ -122,6 +123,7 @@ impl Args {
                     "interactive" => args.interactive = true,
                     "background" => args.background = true,
                     "read-bg" => args.read_bg = true,
+                    "kill" => args.kill = true,
                     "help" => {
                         println!("{}", HELP);
                         std::process::exit(0);
@@ -179,6 +181,7 @@ impl Args {
                         'i' => args.interactive = true,
                         'b' => args.background = true,
                         'r' => args.read_bg = true,
+                        'k' => args.kill = true,
                         'h' => {
                             println!("{}", HELP);
                             std::process::exit(0);
