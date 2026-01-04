@@ -34,27 +34,3 @@ pub fn kill_pid(pid: u32) -> Result<()> {
     Ok(())
 }
 
-pub fn run_in_background<F>(job: F) -> Result<u32>
-where
-    F: FnOnce() + Send + 'static,
-{
-    unsafe {
-        match libc::fork() {
-            -1 => Result::Err(Box::new(io::Error::last_os_error())),
-
-            0 => {
-                if libc::setsid() == -1 {
-                    libc::_exit(1);
-                }
-
-                job();
-
-                libc::_exit(0);
-            }
-
-            pid => {
-                Ok(pid as u32)
-            }
-        }
-    }
-}

@@ -16,26 +16,42 @@ const DEFAULT_HOST: &str = "127.0.0.1";
 const DEFAULT_PORT: &str = "9909";
 const DEFAULT_SE_PATH: &str = "/tmp/lachat";
 
-fn main() -> Result<()> {
-    let stdin = utils::read_stdin()?;
-    let args = cli::Args::parse();
-    println!("{:#?}", args);
-
-    let _se = session::Session::new(args.get_or("S", DEFAULT_SE_PATH))?;
-
-    let host = args.get_or("h", DEFAULT_HOST);
-    let port = args.get_or("P", DEFAULT_PORT);
-
-    let client = laserv::Client::new(&format!("{host}:{port}"));
-    if !client.health() {
-        process::spawn_detached("llama-server", &[
+fn launch_llama_server(host: &str, port: &str) -> Result<u32> {
+    let pid = process::spawn_detached(
+        "llama-server",
+        &[
             "--host",
             host,
             "--port",
             port,
             "--sleep-idle-seconds",
-            "3600"
-        ])?;
+            "3600",
+        ],
+    )?;
+
+    Ok(pid)
+}
+
+fn main() -> Result<()> {
+    let stdin = utils::read_stdin()?;
+    let args = cli::Args::parse();
+    println!("{:#?}", args);
+
+    let host = args.get_or("h", DEFAULT_HOST);
+    let port = args.get_or("P", DEFAULT_PORT);
+
+    let se = session::Session::new(args.get_or("S", DEFAULT_SE_PATH))?;
+    let state = if let Some(st) = se.read_state()? {
+        st
+    } else {
+        let pid = launch_llama_server(host, port)?;
+        session::State { llamacpp_pid: pid, llamacpp_port: port.parse()? }
+    };
+
+    let client = laserv::Client::new(&format!("{host}:{port}"));
+    if !client.health() {
+        if let Ok(state) = se.read_state() {}
+
         // TODO
     }
 
