@@ -9,9 +9,9 @@ pub struct Client {
 }
 
 impl Client {
-    pub fn new(addr: &str) -> Self {
+    pub fn new(base_url: String) -> Self {
         Self {
-            base_url: format!("http://{addr}"),
+            base_url
         }
     }
 

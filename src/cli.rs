@@ -1,17 +1,14 @@
 #[derive(Clone, Debug, Default)]
 pub struct Args {
-    pub host: Option<String>,
-    pub port: Option<String>,
     pub model: Option<String>,
     pub prompt: Vec<String>,
     pub temperature: Option<String>,
     pub session: Option<String>,
-    pub ctx_size: Option<String>,
     pub chat: Option<String>,
     pub system: Option<String>,
     pub interactive: bool,
     pub background: bool,
-    pub read_bg: bool,
+    pub read: bool,
     pub kill: bool,
     pub llama_server_args: Vec<String>,
 }
@@ -22,50 +19,30 @@ lachat — minimal CLI client for llama-server
 
 EXAMPLES:
   lachat -m llama3 -p "Hello"
-  lachat --host 127.0.0.1 --port 8080 --interactive
-  lachat -- -ngl 35 -ctx-size 4096
 
 USAGE:
   lachat [OPTIONS] [-- <LLAMA_SERVER_ARGS>...]
 
 OPTIONS:
-
-  --host <HOST>, -h <HOST>
-          Server host address (IPv4)
-
-  --port <PORT>, -P <PORT>
-          Server port
-
   --model <MODEL>, -m <MODEL>
           Model name to use (fuzzy matching)
-
   --prompt <TEXT>, -p <TEXT>
           Prompt to send to the model
-
   --system <TEXT>, -s <TEXT>
           System prompt (system message)
-
   --chat <ID>, -c <ID>
           Chat ID or chat name
-
   --session <ID>, -S <ID>
           Session identifier
-
   --temperature <VALUE>, -t <VALUE>
           Sampling temperature (float)
-
   --interactive, -i
           Run in interactive mode
-
   --background, -b
           Run in background mode
 
-  --read-bg, -r
-          Read output from background session
-
   -h, --help
           Print this help message and exit
-
   -V, --version
           Print version information and exit
 
@@ -93,12 +70,6 @@ impl Args {
             if i.starts_with("--") {
                 let key = i.trim_start_matches("--");
                 match key {
-                    "host" => {
-                        last.replace('H');
-                    }
-                    "port" => {
-                        last.replace('P');
-                    }
                     "model" => {
                         last.replace('m');
                     }
@@ -111,9 +82,6 @@ impl Args {
                     "chat" => {
                         last.replace('c');
                     }
-                    "ctx-size" => {
-                        last.replace('C');
-                    }
                     "system" => {
                         last.replace('s');
                     }
@@ -122,7 +90,7 @@ impl Args {
                     }
                     "interactive" => args.interactive = true,
                     "background" => args.background = true,
-                    "read-bg" => args.read_bg = true,
+                    "read-bg" => args.read = true,
                     "kill" => args.kill = true,
                     "help" => {
                         println!("{}", HELP);
@@ -137,14 +105,6 @@ impl Args {
             } else if i.starts_with("-") {
                 let trimmed = i.trim_start_matches("-");
                 match trimmed {
-                    "h" => {
-                        last.replace('H');
-                        continue;
-                    }
-                    "P" => {
-                        last.replace('P');
-                        continue;
-                    }
                     "m" => {
                         last.replace('m');
                         continue;
@@ -159,10 +119,6 @@ impl Args {
                     }
                     "c" => {
                         last.replace('c');
-                        continue;
-                    }
-                    "C" => {
-                        last.replace('C');
                         continue;
                     }
                     "s" => {
@@ -180,7 +136,7 @@ impl Args {
                     match c {
                         'i' => args.interactive = true,
                         'b' => args.background = true,
-                        'r' => args.read_bg = true,
+                        'r' => args.read = true,
                         'k' => args.kill = true,
                         'h' => {
                             println!("{}", HELP);
@@ -196,14 +152,6 @@ impl Args {
             } else {
                 if let Some(c) = last {
                     match c {
-                        'h' => {
-                            args.host = i
-                                .as_str()
-                                .parse::<std::net::SocketAddrV4>()
-                                .ok()
-                                .map(|h| h.to_string());
-                        }
-                        'P' => args.port = i.parse::<u16>().ok().map(|v| v.to_string()),
                         'm' => {
                             args.model.replace(i);
                         }
@@ -214,8 +162,6 @@ impl Args {
                         'c' => {
                             args.chat.replace(i);
                         }
-                        'C' => args.ctx_size = i.parse::<usize>().ok().map(|v| v.to_string()),
-
                         's' => {
                             args.system.replace(i);
                         }
@@ -226,7 +172,7 @@ impl Args {
                     }
                     last = None;
                 } else {
-                    // args.theme.replace(i);
+                    args.prompt.push(i);
                 }
             }
         }
@@ -235,8 +181,6 @@ impl Args {
 
     pub fn get_or<'a>(&'a self, key: &str, default: &'a str) -> &'a str {
         match key {
-            "h" => self.host.as_ref().map_or(default, |a| a.as_str()),
-            "P" => self.port.as_ref().map_or(default, |a| a.as_str()),
             "m" => self.model.as_ref().map_or(default, |a| a.as_str()),
             "t" => self.temperature.as_ref().map_or(default, |a| a.as_str()),
             "S" => self.session.as_ref().map_or(default, |a| a.as_str()),

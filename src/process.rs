@@ -1,9 +1,14 @@
 use crate::Result;
+use std::ffi::OsStr;
 use std::io;
 use std::os::unix::process::CommandExt;
 use std::process::{Command, Stdio};
 
-pub fn spawn_detached(cmd: &str, args: &[&str]) -> Result<u32> {
+pub fn spawn_detached<I, S>(cmd: &str, args: I) -> Result<u32> 
+where
+    I: IntoIterator<Item = S>,
+    S: AsRef<OsStr>,
+{
     let mut command = Command::new(cmd);
     command
         .args(args)
