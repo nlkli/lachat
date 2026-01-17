@@ -1,4 +1,3 @@
-
 use std::io::{self, BufRead};
 
 pub struct SseReader<R> {

@@ -7,7 +7,6 @@ mod session;
 mod sse;
 mod utils;
 use std::io;
-
 use models::openai;
 
 pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
