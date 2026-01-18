@@ -19,6 +19,18 @@ impl Client {
         format!("{}{endpoint}", self.base_url)
     }
 
+
+    pub fn wait(&self) -> Result<()> {
+        loop {
+            let res = minreq::get("http://127.0.0.1:8081/health").send();
+            if let Err(e) = res {
+                if e.to_string().starts_with("Connection refused") {
+                    std::thread::sleep(std::time::Duration::from_millis(333));
+                }
+            }
+        }
+    }
+
     pub fn health(&self) -> bool {
         if let Ok(res) = minreq::get(self.url_endpoint("/health")).send() {
             if res.as_str().unwrap_or("").contains("\"ok\"") {

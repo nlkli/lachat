@@ -6,8 +6,8 @@ mod process;
 mod session;
 mod sse;
 mod utils;
-use std::io;
 use models::openai;
+use std::io;
 
 pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
@@ -15,34 +15,38 @@ const DEFAULT_HOST: &str = "127.0.0.1";
 const DEFAULT_PORT: u16 = 8080;
 const DEFAULT_SE_PATH: &str = "/tmp/lachat";
 
-// &[
-//     "--host",
-//     host,
-//     "--port",
-//     port,
-//     "--sleep-idle-seconds",
-//     "3600",
-// ],
-//
-
-fn launch_llama_server<'a>(args: &'a [String]) -> Result<(u32, &'a str, u16)> {
+fn extract_addr_params<'a>(args: &'a [String]) -> (&'a str, u16) {
     let host = args
         .iter()
         .position(|a| a == "--host")
-        .and_then(|i| args.get(i+1).map(String::as_str))
+        .and_then(|i| args.get(i + 1).map(String::as_str))
         .unwrap_or(DEFAULT_HOST);
     let port = args
         .iter()
         .position(|a| a == "--port")
-        .and_then(|i| args.get(i+1))
+        .and_then(|i| args.get(i + 1))
         .and_then(|v| v.parse::<u16>().ok())
         .unwrap_or(DEFAULT_PORT);
-    let pid = process::spawn_detached("llama-server", args)?;
 
-    Ok((pid, host, port))
+    (host, port)
+}
+
+fn launch_llama_server(args: &[String]) -> Result<u32> {
+    let mut args = args.to_vec();
+    if !args.contains(&"--sleep-idle-seconds".into()) {
+        args.push("--sleep-idle-seconds".into());
+        args.push("3600".into());
+    }
+    process::spawn_detached("llama-server", args)
 }
 
 fn main() -> Result<()> {
+    let res = minreq::get("http://127.0.0.1:8081/health").send();
+    if let Err(e) = res {
+        println!("{}", e.to_string());
+    }
+    return Ok(());
+
     let stdin = utils::read_stdin()?;
     let args = cli::Args::parse();
 
@@ -56,7 +60,8 @@ fn main() -> Result<()> {
         }
         st
     } else {
-        let (pid, host, port) = launch_llama_server(&args.llama_server_args)?;
+        let (host, port) = extract_addr_params(&args.llama_server_args);
+        let pid = launch_llama_server(&args.llama_server_args)?;
         session::State {
             llamacpp_pid: pid,
             llamacpp_host: host.into(),
@@ -67,7 +72,22 @@ fn main() -> Result<()> {
     let base_url = format!("http://{}:{}", state.llamacpp_host, state.llamacpp_port);
     let client = laserv::Client::new(base_url);
     if !client.health() {
-        state.llamacpp_pid = launch_llama_server(host, port)?;
+        let mut llama_server_args = args.llama_server_args.clone();
+        let host_pos = llama_server_args.iter().position(|a| a == "--host");
+        if let Some(pos) = host_pos {
+            state.llamacpp_host = llama_server_args[pos+1].clone();
+        } else {
+            llama_server_args.push("--host".into());
+            llama_server_args.push(state.llamacpp_host.clone());
+        }
+        let port_pos = llama_server_args.iter().position(|a| a == "--port");
+        if let Some(pos) = port_pos {
+            state.llamacpp_port = llama_server_args[pos+1].parse().unwrap_or(DEFAULT_PORT);
+        } else {
+            llama_server_args.push("--port".into());
+            llama_server_args.push(state.llamacpp_port.to_string());
+        }
+        state.llamacpp_pid = launch_llama_server(&llama_server_args)?;
     }
 
     se.write_state(&state)?;
