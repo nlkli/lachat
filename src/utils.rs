@@ -1,5 +1,5 @@
 use crate::Result;
-use std::{io::{self, Read}, os::fd::AsRawFd, path::Path};
+use std::{io::{self, Read, Write}, os::fd::AsRawFd, path::Path};
 
 pub fn read_stdin() -> Result<String> {
     let stdin_fd = io::stdin().as_raw_fd();
@@ -117,3 +117,21 @@ pub fn extract_code_blocks(input: &str) -> LlmResponse {
     result
 }
 
+pub struct DualWriter<W1, W2> {
+    pub w1: W1,
+    pub w2: W2,
+}
+
+impl<W1: Write, W2: Write> Write for DualWriter<W1, W2> {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        let n1 = self.w1.write(buf)?;
+        let n2 = self.w2.write(buf)?;
+        Ok(n1.min(n2))
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        self.w1.flush()?;
+        self.w2.flush()?;
+        Ok(())
+    }
+}

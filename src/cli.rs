@@ -1,14 +1,16 @@
+use crate::{DEFAULT_HOST, DEFAULT_PORT};
+
 #[derive(Clone, Debug, Default)]
 pub struct Args {
     pub model: Option<String>,
     pub prompt: Vec<String>,
     pub temperature: Option<String>,
-    pub session: Option<String>,
     pub chat: Option<String>,
+    pub read: Option<String>,
     pub system: Option<String>,
+    pub session: Option<String>,
     pub interactive: bool,
     pub background: bool,
-    pub read: bool,
     pub kill: bool,
     pub llama_server_args: Vec<String>,
 }
@@ -90,7 +92,6 @@ impl Args {
                     }
                     "interactive" => args.interactive = true,
                     "background" => args.background = true,
-                    "read-bg" => args.read = true,
                     "kill" => args.kill = true,
                     "help" => {
                         println!("{}", HELP);
@@ -136,7 +137,6 @@ impl Args {
                     match c {
                         'i' => args.interactive = true,
                         'b' => args.background = true,
-                        'r' => args.read = true,
                         'k' => args.kill = true,
                         'h' => {
                             println!("{}", HELP);
@@ -188,5 +188,21 @@ impl Args {
             "s" => self.system.as_ref().map_or(default, |a| a.as_str()),
             _ => default,
         }
+    }
+
+    pub fn extract_llama_addr<'a>(&'a self) -> (&'a str, u16) {
+        let host = self.llama_server_args
+            .iter()
+            .position(|a| a == "--host")
+            .and_then(|i| self.llama_server_args.get(i + 1).map(String::as_str))
+            .unwrap_or(DEFAULT_HOST);
+        let port = self.llama_server_args
+            .iter()
+            .position(|a| a == "--port")
+            .and_then(|i| self.llama_server_args.get(i + 1))
+            .and_then(|v| v.parse::<u16>().ok())
+            .unwrap_or(DEFAULT_PORT);
+
+        (host, port)
     }
 }

@@ -10,24 +10,29 @@ pub struct Client {
 
 impl Client {
     pub fn new(base_url: String) -> Self {
-        Self {
-            base_url
-        }
+        Self { base_url }
     }
 
     fn url_endpoint(&self, endpoint: &str) -> String {
         format!("{}{endpoint}", self.base_url)
     }
 
-
-    pub fn wait(&self) -> Result<()> {
+    pub fn wait(self, timeout_millis: u64) -> Result<Self> {
+        let mut n = 0;
         loop {
-            let res = minreq::get("http://127.0.0.1:8081/health").send();
+            let res = minreq::get(self.url_endpoint("/health")).send();
             if let Err(e) = res {
                 if e.to_string().starts_with("Connection refused") {
+                    if 333 * n >= timeout_millis {
+                        return Err(Box::new(e));
+                    }
                     std::thread::sleep(std::time::Duration::from_millis(333));
+                    n += 1;
+                    continue;
                 }
+                return Err(Box::new(e));
             }
+            return Ok(self);
         }
     }
 

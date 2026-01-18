@@ -8,15 +8,12 @@ use std::path::{Path, PathBuf};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct State {
-    pub llamacpp_pid: u32,
-    pub llamacpp_host: String,
-    pub llamacpp_port: u16,
+    pub pid: u32,
+    pub host: String,
+    pub port: u16,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct Chat {
-    pub messages: Vec<Message>,
-}
+pub type Chat = Vec<Message>;
 
 pub struct Session {
     path: PathBuf,
@@ -83,7 +80,7 @@ impl Session {
         Ok(())
     }
 
-    pub fn write_chat(&self, chat_id: &str, chat: &Chat) -> Result<()> {
+    pub fn write_chat(&self, chat_id: &str, chat: &[Message]) -> Result<()> {
         self.write(self.chat_path(chat_id), &serde_json::to_string(chat)?)?;
         Ok(())
     }

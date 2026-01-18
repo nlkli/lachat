@@ -29,9 +29,13 @@ impl Chat {
         self.add_message(msg);
         self.client.chat_completions(&self.cr)
     }
+
+    pub fn messages(&self) -> &[Message] {
+        self.cr.messages.as_slice()
+    }
 }
 
-pub fn interactive_chat<W: Write, R: Read>(mut chat: Chat, mut w: W, r: R) -> Result<()> {
+pub fn interactive_chat<W: Write, R: Read>(chat: &mut Chat, mut w: W, r: R) -> Result<()> {
     let mut reader = BufReader::new(r);
 
     const SHORT_HELP: &str =
