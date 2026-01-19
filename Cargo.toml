@@ -3,6 +3,13 @@ name = "lachat"
 version = "0.1.0"
 edition = "2024"
 
+[profile.release]
+opt-level = "z"
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+strip = true
+
 [dependencies]
 minreq = "2"
 serde = { version = "1.0", features = ["derive"] }

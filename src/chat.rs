@@ -1,15 +1,18 @@
 use crate::Result;
 use crate::laserv::Client;
-use crate::models::{laserv::Completion, openai::{CompletionRequest, Message}};
+use crate::models::{
+    laserv::Completion,
+    openai::{CompletionRequest, Message},
+};
 use std::io::{BufRead, BufReader, Read, Write};
 
-pub struct Chat {
-    client: Client,
+pub struct Chat<'a> {
+    client: &'a Client,
     cr: CompletionRequest,
 }
 
-impl Chat {
-    pub fn new(client: Client, cr: CompletionRequest) -> Self {
+impl<'a> Chat<'a> {
+    pub fn new(client: &'a Client, cr: CompletionRequest) -> Self {
         Self { client, cr }
     }
 
@@ -45,7 +48,6 @@ pub fn interactive_chat<W: Write, R: Read>(chat: &mut Chat, mut w: W, r: R) -> R
   /clear  Clear context
   /exit   Exit the chat
   /quit   Exit the chat
-
 Notes:
 - Multi-line input is supported
 - Finish your message with '.' on its own line"#;
@@ -96,7 +98,7 @@ Notes:
 
         let completions = chat.send(Message::user(input))?;
 
-        write!(w, "\n[Assistant] > ")?;
+        write!(w, "\n< ")?;
         w.flush()?;
 
         let mut full_response = String::new();

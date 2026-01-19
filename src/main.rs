@@ -7,7 +7,7 @@ mod session;
 mod sse;
 mod utils;
 use models::openai;
-use std::io::{self, Write};
+use std::io;
 
 pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
@@ -29,53 +29,64 @@ fn main() -> Result<()> {
     let stdin = utils::read_stdin()?;
     let args = cli::Args::parse();
 
-    let se = session::Session::new(args.get_or("S", DEFAULT_SE_PATH))?;
-    let mut state = if let Some(mut st) = se.read_state()? {
-        if args.kill && st.pid != 0 {
-            process::kill_pid(st.pid)?;
-            st.pid = 0;
-            se.write_state(&st)?;
-            return Ok(());
-        }
+    let se = session::Session::new(args.get_or(
+        "S",
+        &std::env::var("LACHAT_SESSION").unwrap_or(DEFAULT_SE_PATH.into()),
+    ))?;
+    let mut state = if let Some(st) = se.read_state()? {
         st
     } else {
         let (host, port) = args.extract_llama_addr();
+        let host = host.unwrap_or(DEFAULT_HOST).to_string();
+        let port = port.unwrap_or(DEFAULT_PORT);
         let pid = launch_llama_server(&args.llama_server_args)?;
-        session::State {
-            pid,
-            host: host.into(),
-            port,
-        }
+        laserv::Client::new(format!("http://{}:{}", host, port)).wait(15000)?;
+        let st = session::State { pid, host, port };
+        se.write_state(&st)?;
+        st
     };
 
     if !args.llama_server_args.is_empty() {
-        
+        let (host, port) = args.extract_llama_addr();
+        let host = host.unwrap_or(&state.host).to_string();
+        let port = port.unwrap_or(state.port);
+        if host != state.host || port != state.port {
+            if state.pid != 0 {
+                process::kill_pid(state.pid)?;
+                state.pid = 0;
+                se.write_state(&state)?;
+            }
+            let pid = launch_llama_server(&utils::extend_args(
+                &args.llama_server_args,
+                &["--host", host.as_str(), "--port", port.to_string().as_str()],
+            ))?;
+            laserv::Client::new(format!("http://{}:{}", host, port)).wait(15000)?;
+            state.pid = pid;
+            state.host = host;
+            state.port = port;
+            se.write_state(&state)?;
+        }
     }
 
-    let base_url = format!("http://{}:{}", state.host, state.port);
-    let client = laserv::Client::new(base_url);
+    if state.pid == 0 {
+        let pid = launch_llama_server(&utils::extend_args(
+            &args.llama_server_args,
+            &[
+                "--host",
+                state.host.as_str(),
+                "--port",
+                state.port.to_string().as_str(),
+            ],
+        ))?;
+        laserv::Client::new(format!("http://{}:{}", state.host, state.port)).wait(15000)?;
+        state.pid = pid;
+        se.write_state(&state)?;
+    }
+
+    let client = laserv::Client::new(format!("http://{}:{}", state.host, state.port));
     if !client.health() {
-        let mut llama_server_args = args.llama_server_args.clone();
-        let host_pos = llama_server_args.iter().position(|a| a == "--host");
-        if let Some(pos) = host_pos {
-            state.host = llama_server_args[pos + 1].clone();
-        } else {
-            llama_server_args.push("--host".into());
-            llama_server_args.push(state.host.clone());
-        }
-        let port_pos = llama_server_args.iter().position(|a| a == "--port");
-        if let Some(pos) = port_pos {
-            state.port = llama_server_args[pos + 1].parse().unwrap_or(DEFAULT_PORT);
-        } else {
-            llama_server_args.push("--port".into());
-            llama_server_args.push(state.port.to_string());
-        }
-        state.pid = launch_llama_server(&llama_server_args)?;
+        panic!("llama-server is not responding");
     }
-
-    se.write_state(&state)?;
-    let base_url = format!("http://{}:{}", state.host, state.port);
-    let client = laserv::Client::new(base_url).wait(15000)?;
 
     let available_models = client.available_models()?;
     if available_models.is_empty() {
@@ -88,6 +99,7 @@ fn main() -> Result<()> {
 
     let mut crb = openai::CompletionRequest::builder(model);
     let mut chat = if let Some(ref chat_id) = args.chat {
+        se.write_state(&state)?;
         if let Ok(Some(chat)) = se.read_chat(chat_id) {
             chat
         } else {
@@ -104,6 +116,14 @@ fn main() -> Result<()> {
         .map(|f| f.abs().max(1.).min(0.))
     {
         crb = crb.temperature(t);
+    }
+
+    if let Some(t) = args
+        .max_tokens
+        .as_ref()
+        .and_then(|t| t.parse::<u32>().ok())
+    {
+        crb = crb.max_tokens(t);
     }
 
     if let Some(ref system) = args.system {
@@ -128,34 +148,38 @@ fn main() -> Result<()> {
         }
     }
 
-    if chat.is_empty() {
-        return Ok(());
-    };
-
+    let have_messages = !chat.is_empty();
     let cr = crb.messages(chat).stream(true).build();
+
+    if have_messages {
+        let mut buff: Vec<u8> = Vec::new();
+        let w = utils::DualWriter {
+            w1: io::stdout(),
+            w2: &mut buff,
+        };
+        client.write_chat_completions(&cr, w)?;
+        println!();
+        if let Some(ref chat_id) = args.chat {
+            let mut chat = Vec::with_capacity(cr.messages.len() + 1);
+            chat.extend_from_slice(&cr.messages);
+            chat.push(openai::Message::assistant(String::from_utf8(buff)?));
+            se.write_chat(chat_id, &chat)?;
+        }
+    }
+
     if args.interactive {
-        let mut ch = chat::Chat::new(client.clone(), cr);
+        let mut ch = chat::Chat::new(&client, cr);
         chat::interactive_chat(&mut ch, std::io::stdout(), std::io::stdin())?;
         if let Some(ref chat_id) = args.chat {
             se.write_chat(chat_id, ch.messages())?;
         }
-        return Ok(());
     }
 
-    let mut buff: Vec<u8> = Vec::new();
-    let w = utils::DualWriter {
-        w1: io::stdout(),
-        w2: &mut buff,
-    };
-    client.write_chat_completions(&cr, w)?;
-    println!();
-    if let Some(ref chat_id) = args.chat {
-        let mut chat = Vec::with_capacity(cr.messages.len() + 1);
-        chat.extend_from_slice(&cr.messages);
-        chat.push(openai::Message::assistant(String::from_utf8(buff)?));
-        se.write_chat(chat_id, &chat)?;
+    if args.kill && state.pid != 0 {
+        process::kill_pid(state.pid)?;
+        state.pid = 0;
+        se.write_state(&state)?;
     }
-    // TODO background
 
     Ok(())
 }

@@ -12,11 +12,6 @@ impl<R: BufRead> SseReader<R> {
             buffer: String::with_capacity(256),
         }
     }
-
-    /// Returns the underlying reader.
-    pub fn into_inner(self) -> R {
-        self.reader
-    }
 }
 
 impl<R: BufRead> Iterator for SseReader<R> {

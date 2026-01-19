@@ -1,5 +1,9 @@
 use crate::Result;
-use std::{io::{self, Read, Write}, os::fd::AsRawFd, path::Path};
+use std::{
+    io::{self, Read, Write},
+    os::fd::AsRawFd,
+    path::Path,
+};
 
 pub fn read_stdin() -> Result<String> {
     let stdin_fd = io::stdin().as_raw_fd();
@@ -59,64 +63,6 @@ pub fn is_existing_file(path: &str) -> bool {
     Path::new(path).is_file()
 }
 
-#[derive(Debug, Default)]
-pub struct LlmResponse {
-    pub text: String,
-    pub code_blocks: Vec<CodeBlock>,
-}
-
-#[derive(Debug)]
-pub struct CodeBlock {
-    pub language: Option<String>,
-    pub code: String,
-}
-
-pub fn extract_code_blocks(input: &str) -> LlmResponse {
-    let mut result = LlmResponse::default();
-    let mut rest = input;
-
-    while let Some(start) = rest.find("```") {
-        result.text.push_str(&rest[..start]);
-
-        rest = &rest[start + 3..];
-
-        let (language, after_lang) = match rest.find('\n') {
-            Some(nl) => {
-                let lang = rest[..nl].trim();
-                let lang = if lang.is_empty() {
-                    None
-                } else {
-                    Some(lang.to_string())
-                };
-                (lang, &rest[nl + 1..])
-            }
-            None => break,
-        };
-
-        if let Some(end) = after_lang.find("```") {
-            let code = &after_lang[..end];
-
-            result.code_blocks.push(CodeBlock {
-                language,
-                code: code.to_string(),
-            });
-
-            rest = &after_lang[end + 3..];
-        } else {
-            result.code_blocks.push(CodeBlock {
-                language,
-                code: after_lang.to_string(),
-            });
-            rest = "";
-            break;
-        }
-    }
-
-    result.text.push_str(rest);
-
-    result
-}
-
 pub struct DualWriter<W1, W2> {
     pub w1: W1,
     pub w2: W2,
@@ -134,4 +80,19 @@ impl<W1: Write, W2: Write> Write for DualWriter<W1, W2> {
         self.w2.flush()?;
         Ok(())
     }
+}
+
+pub fn extend_args(args: &[String], from: &[&str]) -> Vec<String> {
+    let mut result = args.to_vec();
+    for i in (0..from.len()).step_by(2) {
+        let name = from[i];
+        let value = from.get(i + 1).map_or("", |v| *v);
+        if let Some(pos) = args.iter().position(|v| v == name) {
+            result.get_mut(pos + 1).map(|v| *v = value.into());
+        } else {
+            result.push(name.into());
+            result.push(value.into());
+        }
+    }
+    result
 }
