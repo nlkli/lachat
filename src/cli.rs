@@ -7,7 +7,9 @@ pub struct Args {
     pub chat: Option<String>,
     pub system: Option<String>,
     pub session: Option<String>,
+    pub code: bool,
     pub interactive: bool,
+    pub last: bool,
     pub kill: bool,
     pub llama_server_args: Vec<String>,
 }
@@ -18,40 +20,49 @@ USAGE:
   lachat [OPTIONS] [PROMPT...] -- [LLAMA_SERVER_ARGS...]
 OPTIONS:
   -p, --prompt <TEXT|PATH>
-          Prompt to send to the model. Can be specified multiple times.
-          If a file path is provided, its contents are used.
+        Prompt to send to the model. Can be specified multiple times.
+        If a file path is provided, its contents are used.
   -m, --model <MODEL>
-          Model name to use. If not specified, the first available model is used.
-          Fuzzy matching is applied when resolving the model name.
+        Model name to use. If not specified, the first available model is used.
+        Fuzzy matching is applied when resolving the model name.
   -s, --system <TEXT|PATH>
-          System prompt (system message).
+        System prompt (system message).
   -c, --chat <ID>
-          Chat ID or chat name.
-          Enables persistent chat history stored in the session.
+        Chat identifier. Enables persistent chat history stored in the session.
+        If no prompt is provided, the chat history is printed as JSON.
   -S, --session <PATH>
-          Path to the session directory.
-          Defaults to $LACHAT_SESSION or the built-in default path /tmp/lachat
-  -t, --temperature <VALUE>
-          Sampling temperature (float).
+        Path to the session directory. Stores server state and chat history.
+        Defaults to $LACHAT_SESSION or /tmp/lachat.
+  -t, --temp --temperature <VALUE>
+        Sampling temperature (float).
   -x, --max-tokens <VALUE>
-          Sets maximum tokens to generate.
+        Maximum number of tokens to generate.
+  -e, --code
+        Extract and output only code blocks from the model response.         
+  -l, --last
+        Show the last assistant message from the specified chat or the most recent session.
   -i, --interactive
-          Start an interactive chat session.
+        Start an interactive chat session.
   -k, --kill
-          Kill the currently running llama-server.
+        Kill the currently running llama-server.
   -h, --help
-          Print this help message and exit.
+        Print this help message and exit.
   -V, --version
-          Print version information and exit.
+        Print version information and exit.
 PASSTHROUGH ARGUMENTS:
   -- <ARGS>...
-          All arguments after '--' are passed directly to llama-server.
+        All arguments after '--' are passed directly to llama-server.
+SERVER BEHAVIOR:
+  If no server is running for the session, llama-server is started automatically.
+  If server arguments change (host/port), the old server is terminated and restarted.
 PROMPT SOURCES (in order):
-  1. stdin (if not empty)
-  2. --prompt arguments
+  stdin (if not empty)
+  --prompt arguments
 EXAMPLES:
-  lachat hello!
-  cat main.rs | lachat -m qwen -p "code refactor" -c mychat -- --port 5050"#;
+  lachat "hello!"
+  lachat -m qwen -c mychat -p "main.rs" -p "refactor this code"
+  cat main.go | lachat -s system.txt
+  lachat -- --host 127.0.0.1 --port 5050"#;
 
 impl Args {
     pub fn parse() -> Self {
@@ -80,6 +91,9 @@ impl Args {
                     "temperature" => {
                         last.replace('t');
                     }
+                    "temp" => {
+                        last.replace('t');
+                    }
                     "max-tokens" => {
                         last.replace('x');
                     }
@@ -94,6 +108,8 @@ impl Args {
                     }
                     "interactive" => args.interactive = true,
                     "kill" => args.kill = true,
+                    "code" => args.code = true,
+                    "last" => args.last = true,
                     "help" => {
                         println!("{}", HELP);
                         std::process::exit(0);
@@ -140,6 +156,8 @@ impl Args {
                 let chars = trimmed.chars();
                 for c in chars {
                     match c {
+                        'e' => args.code = true,
+                        'l' => args.last = true,
                         'i' => args.interactive = true,
                         'k' => args.kill = true,
                         'h' => {
@@ -195,7 +213,7 @@ impl Args {
         }
     }
 
-    pub fn extract_llama_addr<'a>(&'a self) -> (Option<&'a str>, Option<u16>) {
+    pub fn extract_serv_addr<'a>(&'a self) -> (Option<&'a str>, Option<u16>) {
         let host = self
             .llama_server_args
             .iter()
@@ -209,5 +227,10 @@ impl Args {
             .and_then(|v| v.parse::<u16>().ok());
 
         (host, port)
+    }
+
+    pub fn extract_serv_addr_or_default<'a>(&'a self, host: &'a str, port: u16) -> (&'a str, u16) {
+        let (h, p) = self.extract_serv_addr();
+        (h.unwrap_or(host), p.unwrap_or(port))
     }
 }

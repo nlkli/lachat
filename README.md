@@ -1,6 +1,8 @@
 # lachat
 
-lacht - минималистичный CLI клиент для [llama-server](https://github.com/ggml-org/llama.cpp).
+lachat is a command-line client for interacting with [llama-server](https://github.com/ggml-org/llama.cpp). It can launch, reuse, or terminate a [llama-server](https://github.com/ggml-org/llama.cpp) instance automatically, send prompts to the model, stream responses, and persist chat history.
+
+If no [llama-server](https://github.com/ggml-org/llama.cpp) is running for the current session, it is started automatically. Server state and chat history are stored in the session directory.
 
 ### Help message
 
@@ -10,38 +12,47 @@ USAGE:
   lachat [OPTIONS] [PROMPT...] -- [LLAMA_SERVER_ARGS...]
 OPTIONS:
   -p, --prompt <TEXT|PATH>
-          Prompt to send to the model. Can be specified multiple times.
-          If a file path is provided, its contents are used.
+        Prompt to send to the model. Can be specified multiple times.
+        If a file path is provided, its contents are used.
   -m, --model <MODEL>
-          Model name to use. If not specified, the first available model is used.
-          Fuzzy matching is applied when resolving the model name.
+        Model name to use. If not specified, the first available model is used.
+        Fuzzy matching is applied when resolving the model name.
   -s, --system <TEXT|PATH>
-          System prompt (system message).
+        System prompt (system message).
   -c, --chat <ID>
-          Chat ID or chat name.
-          Enables persistent chat history stored in the session.
+        Chat identifier. Enables persistent chat history stored in the session.
+        If no prompt is provided, the chat history is printed as JSON.
   -S, --session <PATH>
-          Path to the session directory.
-          Defaults to $LACHAT_SESSION or the built-in default path /tmp/lachat
-  -t, --temperature <VALUE>
-          Sampling temperature (float).
+        Path to the session directory. Stores server state and chat history.
+        Defaults to $LACHAT_SESSION or /tmp/lachat.
+  -t, --temp --temperature <VALUE>
+        Sampling temperature (float).
   -x, --max-tokens <VALUE>
-          Sets maximum tokens to generate.
+        Maximum number of tokens to generate.
+  -e, --code
+        Extract and output only code blocks from the model response.         
+  -l, --last
+        Show the last assistant message from the specified chat or the most recent session.
   -i, --interactive
-          Start an interactive chat session.
+        Start an interactive chat session.
   -k, --kill
-          Kill the currently running llama-server.
+        Kill the currently running llama-server.
   -h, --help
-          Print this help message and exit.
+        Print this help message and exit.
   -V, --version
-          Print version information and exit.
+        Print version information and exit.
 PASSTHROUGH ARGUMENTS:
   -- <ARGS>...
-          All arguments after '--' are passed directly to llama-server.
+        All arguments after '--' are passed directly to llama-server.
+SERVER BEHAVIOR:
+  If no server is running for the session, llama-server is started automatically.
+  If server arguments change (host/port), the old server is terminated and restarted.
 PROMPT SOURCES (in order):
-  1. stdin (if not empty)
-  2. --prompt arguments
+  stdin (if not empty)
+  --prompt arguments
 EXAMPLES:
-  lachat hello!
-  cat main.rs | lachat -m qwen -p "code refactor" -c mychat -- --port 5050
+  lachat "hello!"
+  lachat -m qwen -c mychat -p "main.rs" -p "refactor this code"
+  cat main.go | lachat -s system.txt
+  lachat -- --host 127.0.0.1 --port 5050
 ```

@@ -13,6 +13,12 @@ pub struct State {
     pub port: u16,
 }
 
+impl State {
+    pub fn new(pid: u32, host: String, port: u16) -> Self {
+        Self { pid, host, port }
+    }
+}
+
 pub type Chat = Vec<Message>;
 
 pub struct Session {
@@ -43,10 +49,12 @@ impl Session {
         Ok(Session { path, _lock: lock })
     }
 
+    #[inline(always)]
     fn state_path(&self) -> PathBuf {
         self.path.join("session.json")
     }
 
+    #[inline(always)]
     fn chats_dir(&self) -> PathBuf {
         self.path.join("chats")
     }

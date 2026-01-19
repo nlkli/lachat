@@ -1,4 +1,5 @@
 use crate::Result;
+use crate::iter::chat_completions_code;
 use crate::models::{laserv, openai};
 use crate::sse::SseReader;
 use std::io::Write;
@@ -13,80 +14,109 @@ impl Client {
         Self { base_url }
     }
 
-    fn url_endpoint(&self, endpoint: &str) -> String {
-        format!("{}{endpoint}", self.base_url)
+    fn endpoint(&self, path: &str) -> String {
+        format!("{}{path}", self.base_url)
     }
 
-    pub fn wait(self, timeout_millis: u64) -> Result<Self> {
-        let mut n = 0;
+    pub fn wait(self, timeout_ms: u64) -> Result<Self> {
+        let mut attempts = 0;
+        let delay_ms = 333;
+
         loop {
-            let res = minreq::get(self.url_endpoint("/health")).send();
-            if let Err(e) = res {
-                if e.to_string().starts_with("Connection refused") {
-                    if 333 * n >= timeout_millis {
-                        return Err(Box::new(e));
+            match minreq::get(self.endpoint("/health")).send() {
+                Ok(_) => return Ok(self),
+                Err(e) => {
+                    let msg = e.to_string();
+                    if msg.starts_with("Connection refused") {
+                        if delay_ms * attempts >= timeout_ms {
+                            return Err(format!(
+                                "timeout while waiting for llama-server to become available: {}",
+                                e
+                            )
+                            .into());
+                        }
+                        std::thread::sleep(std::time::Duration::from_millis(delay_ms));
+                        attempts += 1;
+                        continue;
                     }
-                    std::thread::sleep(std::time::Duration::from_millis(333));
-                    n += 1;
-                    continue;
+                    return Err(format!("health check failed: {}", e).into());
                 }
-                return Err(Box::new(e));
             }
-            return Ok(self);
         }
     }
 
     pub fn health(&self) -> bool {
-        if let Ok(res) = minreq::get(self.url_endpoint("/health")).send() {
-            if res.as_str().unwrap_or("").contains("\"ok\"") {
-                return true;
-            }
-        }
-        false
+        minreq::get(self.endpoint("/health"))
+            .send()
+            .ok()
+            .and_then(|r| r.as_str().ok().map(str::to_owned))
+            .map(|s| s.contains("\"ok\""))
+            .unwrap_or(false)
     }
 
     pub fn available_models(&self) -> Result<laserv::ModelsResponse> {
-        let resp = minreq::get(self.url_endpoint("/models")).send()?;
-        let models = serde_json::from_str(resp.as_str()?)?;
-        Ok(models)
+        let resp = minreq::get(self.endpoint("/models"))
+            .send()
+            .map_err(|e| format!("failed to fetch models list: {}", e))?;
+
+        serde_json::from_str(resp.as_str()?)
+            .map_err(|e| format!("failed to parse models response: {}", e).into())
     }
 
     pub fn chat_completions(
         &self,
-        cr: &openai::CompletionRequest,
+        request: &openai::CompletionRequest,
     ) -> Result<Box<dyn Iterator<Item = laserv::Completion>>> {
-        let req = minreq::post(self.url_endpoint("/chat/completions"))
+        let req = minreq::post(self.endpoint("/chat/completions"))
             .with_header("Content-Type", "application/json")
-            .with_body(serde_json::to_vec(cr)?);
+            .with_body(serde_json::to_vec(request)?);
 
-        if cr.stream == Some(true) {
-            let resp = req.send_lazy()?;
+        if request.stream == Some(true) {
+            let resp = req
+                .send_lazy()
+                .map_err(|e| format!("failed to start streaming response: {}", e))?;
             let reader = std::io::BufReader::new(resp);
 
-            let iter = SseReader::new(reader).filter_map(|res| {
-                let data = res.ok()?;
+            let iter = SseReader::new(reader).filter_map(|event| {
+                let data = event.ok()?;
                 let chunk = serde_json::from_str::<openai::CompletionChunk>(&data).ok()?;
                 Some(laserv::Completion::Chunk(chunk))
             });
 
             Ok(Box::new(iter))
         } else {
-            let resp = req.send()?;
-            let response =
-                serde_json::from_slice::<openai::CompletionResponse>(&resp.into_bytes())?;
+            let resp = req
+                .send()
+                .map_err(|e| format!("chat completion request failed: {}", e))?;
+            let parsed = serde_json::from_slice::<openai::CompletionResponse>(&resp.into_bytes())
+                .map_err(|e| format!("failed to parse completion response: {}", e))?;
 
-            let iter = std::iter::once(laserv::Completion::Response(response));
-            Ok(Box::new(iter))
+            Ok(Box::new(std::iter::once(laserv::Completion::Response(
+                parsed,
+            ))))
         }
     }
 
     pub fn write_chat_completions<W: Write>(
         &self,
-        cr: &openai::CompletionRequest,
-        mut w: W,
+        request: &openai::CompletionRequest,
+        mut writer: W,
     ) -> Result<()> {
-        for c in self.chat_completions(cr)? {
-            write!(&mut w, "{}", c.first_content().unwrap_or(""))?;
+        for completion in self.chat_completions(request)? {
+            let content = completion.first_content().unwrap_or("");
+            write!(writer, "{}", content)?;
+        }
+        Ok(())
+    }
+
+    pub fn write_chat_completions_code<W: Write>(
+        &self,
+        request: &openai::CompletionRequest,
+        mut writer: W,
+    ) -> Result<()> {
+        let iter = self.chat_completions(request)?;
+        for chunk in chat_completions_code(iter) {
+            write!(writer, "{}", chunk)?;
         }
         Ok(())
     }

@@ -44,13 +44,11 @@ pub fn interactive_chat<W: Write, R: Read>(chat: &mut Chat, mut w: W, r: R) -> R
     const SHORT_HELP: &str =
         "Type message, end with '.' on a new line. /help for commands, /exit to quit.";
     const HELP: &str = r#"Commands:
-  /help   Show this help
   /clear  Clear context
   /exit   Exit the chat
   /quit   Exit the chat
-Notes:
-- Multi-line input is supported
-- Finish your message with '.' on its own line"#;
+
+Multi-line input is supported. Finish your message with '.' on its own line"#;
 
     writeln!(w, "{SHORT_HELP}")?;
 
