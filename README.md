@@ -4,7 +4,7 @@ lachat is a command-line client for interacting with [llama-server](https://gith
 
 If no [llama-server](https://github.com/ggml-org/llama.cpp) is running for the current session, it is started automatically. Server state and chat history are stored in the session directory.
 
-### Help message
+## Help message
 
 ```text
 lachat — minimal CLI client for llama-server
