@@ -117,7 +117,9 @@ impl Session {
         for f in fs::read_dir(self.chats_dir())? {
             let file_name = f?.file_name().into_string().unwrap(); // ?
             let chat_id = file_name.trim_end_matches(".json");
-            list.push(chat_id.into());
+            if !chat_id.is_empty() {
+                list.push(chat_id.into());
+            }
         }
         Ok(list)
     }

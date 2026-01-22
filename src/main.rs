@@ -42,7 +42,7 @@ fn main() -> Result<()> {
         "S",
         &std::env::var("LACHAT_SESSION").unwrap_or(DEFAULT_SESSION_PATH.into()),
     ))
-    .map_err(|e| format!("failed to initialize session: {}", e))?;
+        .map_err(|e| format!("failed to initialize session: {}", e))?;
 
     let mut state = match session.read_state()? {
         Some(state) => state,
@@ -218,6 +218,20 @@ fn main() -> Result<()> {
 
         if let Some(chat_id) = args.chat.as_ref() {
             session.write_chat(chat_id, interactive_chat.messages())?;
+        }
+    }
+
+    if args.clear {
+        if let Some(chat_id) = args.chat.as_ref() {
+            session.clear_chat(chat_id)?;
+        } else {
+            session.clear_all_chat()?;
+        }
+    }
+
+    if args.chat_list {
+        for c in session.chat_list()? {
+            println!("{}", c);
         }
     }
 
