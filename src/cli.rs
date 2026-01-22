@@ -10,6 +10,8 @@ pub struct Args {
     pub code: bool,
     pub interactive: bool,
     pub last: bool,
+    pub chat_list: bool,
+    pub clear: bool,
     pub kill: bool,
     pub llama_server_args: Vec<String>,
 }
@@ -43,6 +45,10 @@ OPTIONS:
         Show the last assistant message from the specified chat or the most recent session.
   -i, --interactive
         Start an interactive chat session.
+  -L --chat-list
+        List stored chats
+  -C --clear
+        Clear chats (all or specified with --chat)
   -k, --kill
         Kill the currently running llama-server.
   -h, --help
@@ -107,6 +113,8 @@ impl Args {
                         last.replace('S');
                     }
                     "interactive" => args.interactive = true,
+                    "chat-list" => args.chat_list = true,
+                    "clear" => args.clear = true,
                     "kill" => args.kill = true,
                     "code" => args.code = true,
                     "last" => args.last = true,
@@ -158,6 +166,8 @@ impl Args {
                     match c {
                         'e' => args.code = true,
                         'l' => args.last = true,
+                        'L' => args.chat_list = true,
+                        'C' => args.clear = true,
                         'i' => args.interactive = true,
                         'k' => args.kill = true,
                         'h' => {

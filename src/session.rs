@@ -100,4 +100,25 @@ impl Session {
 
         Ok(())
     }
+
+    pub fn clear_chat(&self, chat_id: &str) -> Result<()> {
+        Ok(fs::remove_file(self.chat_path(chat_id))?)
+    }
+
+    pub fn clear_all_chat(&self) -> Result<()> {
+        for c in self.chat_list()? {
+            self.clear_chat(&c)?;
+        }
+        Ok(())
+    }
+
+    pub fn chat_list(&self) -> Result<Vec<String>> {
+        let mut list = Vec::new();
+        for f in fs::read_dir(self.chats_dir())? {
+            let file_name = f?.file_name().into_string().unwrap(); // ?
+            let chat_id = file_name.trim_end_matches(".json");
+            list.push(chat_id.into());
+        }
+        Ok(list)
+    }
 }
