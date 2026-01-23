@@ -45,7 +45,7 @@ OPTIONS:
         Show the last assistant message from the specified chat or the most recent session.
   -i, --interactive
         Start an interactive chat session.
-  -L --chat-list
+  -L --list --chat-list
         List stored chats
   -C --clear
         Clear chats (all or specified with --chat)
@@ -114,6 +114,7 @@ impl Args {
                     }
                     "interactive" => args.interactive = true,
                     "chat-list" => args.chat_list = true,
+                    "list" => args.chat_list = true,
                     "clear" => args.clear = true,
                     "kill" => args.kill = true,
                     "code" => args.code = true,

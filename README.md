@@ -35,6 +35,10 @@ OPTIONS:
         Show the last assistant message from the specified chat or the most recent session.
   -i, --interactive
         Start an interactive chat session.
+  -L --list --chat-list
+        List stored chats
+  -C --clear
+        Clear chats (all or specified with --chat)
   -k, --kill
         Kill the currently running llama-server.
   -h, --help
