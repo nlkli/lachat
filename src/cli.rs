@@ -7,7 +7,8 @@ pub struct Args {
     pub chat: Option<String>,
     pub system: Option<String>,
     pub session: Option<String>,
-    pub code: bool,
+    pub code_only: bool,
+    pub first_code: bool,
     pub interactive: bool,
     pub last: bool,
     pub chat_list: bool,
@@ -39,8 +40,10 @@ OPTIONS:
         Sampling temperature (float).
   -x, --max-tokens <VALUE>
         Maximum number of tokens to generate.
-  -e, --code
+  -e, --code-only
         Extract and output only code blocks from the model response.         
+  -E, --first-code
+        Output only the first code block.
   -l, --last
         Show the last assistant message from the specified chat or the most recent session.
   -i, --interactive
@@ -65,7 +68,7 @@ PROMPT SOURCES (in order):
   stdin (if not empty)
   --prompt arguments
 EXAMPLES:
-  lachat "hello!"
+  lachat hello
   lachat -m qwen -c mychat -p "main.rs" -p "refactor this code"
   cat main.go | lachat -s system.txt
   lachat -- --host 127.0.0.1 --port 5050"#;
@@ -117,7 +120,8 @@ impl Args {
                     "list" => args.chat_list = true,
                     "clear" => args.clear = true,
                     "kill" => args.kill = true,
-                    "code" => args.code = true,
+                    "code-only" => args.code_only = true,
+                    "first-only" => args.first_code = true,
                     "last" => args.last = true,
                     "help" => {
                         println!("{}", HELP);
@@ -165,7 +169,8 @@ impl Args {
                 let chars = trimmed.chars();
                 for c in chars {
                     match c {
-                        'e' => args.code = true,
+                        'e' => args.code_only = true,
+                        'E' => args.first_code = true,
                         'l' => args.last = true,
                         'L' => args.chat_list = true,
                         'C' => args.clear = true,

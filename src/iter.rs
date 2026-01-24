@@ -83,6 +83,7 @@ where
     source: I,
     inside_code_block: bool,
     first: bool,
+    block_num: usize,
 }
 
 impl<I> CodeBlocks<I>
@@ -94,6 +95,7 @@ where
             source,
             inside_code_block: false,
             first: false,
+            block_num: 0,
         }
     }
 
@@ -106,21 +108,25 @@ impl<I> Iterator for CodeBlocks<I>
 where
     I: Iterator<Item = String>,
 {
-    type Item = String;
+    type Item = (String, usize);
 
     fn next(&mut self) -> Option<Self::Item> {
         while let Some(line) = self.source.next() {
             if Self::is_fence(&line) {
                 self.inside_code_block = !self.inside_code_block;
+                if self.inside_code_block {
+                    self.block_num += 1;
+                }
                 continue;
             }
 
             if self.inside_code_block {
                 if !self.first {
                     self.first = true;
-                    return Some(line);
+                    self.block_num = 0;
+                    return Some((line, self.block_num));
                 }
-                return Some(format!("\n{line}"));
+                return Some((format!("\n{line}"), self.block_num));
             }
         }
 

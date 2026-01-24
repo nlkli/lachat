@@ -109,13 +109,28 @@ impl Client {
         Ok(())
     }
 
-    pub fn write_chat_completions_code<W: Write>(
+    pub fn write_chat_completions_code_only<W: Write>(
         &self,
         request: &openai::CompletionRequest,
         mut writer: W,
     ) -> Result<()> {
         let iter = self.chat_completions(request)?;
-        for chunk in chat_completions_code(iter) {
+        for (chunk, _) in chat_completions_code(iter) {
+            write!(writer, "{}", chunk)?;
+        }
+        Ok(())
+    }
+
+    pub fn write_chat_completions_first_code<W: Write>(
+        &self,
+        request: &openai::CompletionRequest,
+        mut writer: W,
+    ) -> Result<()> {
+        let iter = self.chat_completions(request)?;
+        for (chunk, n) in chat_completions_code(iter) {
+            if n > 0 {
+                break;
+            }
             write!(writer, "{}", chunk)?;
         }
         Ok(())

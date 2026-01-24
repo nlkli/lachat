@@ -29,8 +29,10 @@ OPTIONS:
         Sampling temperature (float).
   -x, --max-tokens <VALUE>
         Maximum number of tokens to generate.
-  -e, --code
+  -e, --code-only
         Extract and output only code blocks from the model response.         
+  -E, --first-code
+        Output only the first code block.
   -l, --last
         Show the last assistant message from the specified chat or the most recent session.
   -i, --interactive
@@ -55,7 +57,7 @@ PROMPT SOURCES (in order):
   stdin (if not empty)
   --prompt arguments
 EXAMPLES:
-  lachat "hello!"
+  lachat hello
   lachat -m qwen -c mychat -p "main.rs" -p "refactor this code"
   cat main.go | lachat -s system.txt
   lachat -- --host 127.0.0.1 --port 5050

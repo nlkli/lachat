@@ -168,8 +168,10 @@ fn main() -> Result<()> {
             w2: &mut response_buffer,
         };
 
-        if args.code {
-            client.write_chat_completions_code(&completion_request, writer)?;
+        if args.first_code {
+            client.write_chat_completions_first_code(&completion_request, writer)?;
+        } else if args.code_only {
+            client.write_chat_completions_code_only(&completion_request, writer)?;
         } else {
             client.write_chat_completions(&completion_request, writer)?;
         }
