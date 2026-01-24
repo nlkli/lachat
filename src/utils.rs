@@ -1,9 +1,24 @@
 use crate::Result;
+use std::process::Command;
 use std::{
     io::{self, Read, Write},
     os::fd::AsRawFd,
     path::Path,
 };
+
+pub fn open_url(url: &str) -> Result<()> {
+    #[cfg(target_os = "macos")]
+    {
+        Command::new("open").arg(url).spawn()?;
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        Command::new("xdg-open").arg(url).spawn()?;
+    }
+
+    Ok(())
+}
 
 pub fn read_stdin() -> Result<String> {
     let stdin_fd = io::stdin().as_raw_fd();

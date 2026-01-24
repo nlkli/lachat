@@ -13,6 +13,7 @@ pub struct Args {
     pub last: bool,
     pub chat_list: bool,
     pub clear: bool,
+    pub open: bool,
     pub kill: bool,
     pub llama_server_args: Vec<String>,
 }
@@ -41,17 +42,20 @@ OPTIONS:
   -x, --max-tokens <VALUE>
         Maximum number of tokens to generate.
   -e, --code-only
-        Extract and output only code blocks from the model response.         
+        Output only code blocks from the model response.
   -E, --first-code
-        Output only the first code block.
+        Output only the first code block from the model response.
   -l, --last
-        Show the last assistant message from the specified chat or the most recent session.
+        Print the last assistant message.
+        Uses the specified --chat or the most recent session.
   -i, --interactive
         Start an interactive chat session.
-  -L --list --chat-list
+  -L, --list --chat-list
         List stored chats
-  -C --clear
+  -C, --clear
         Clear chats (all or specified with --chat)
+  -o, --open
+        Open the llama-server web interface in the default browser.
   -k, --kill
         Kill the currently running llama-server.
   -h, --help
@@ -120,6 +124,7 @@ impl Args {
                     "list" => args.chat_list = true,
                     "clear" => args.clear = true,
                     "kill" => args.kill = true,
+                    "open" => args.open = true,
                     "code-only" => args.code_only = true,
                     "first-only" => args.first_code = true,
                     "last" => args.last = true,
@@ -176,6 +181,7 @@ impl Args {
                         'C' => args.clear = true,
                         'i' => args.interactive = true,
                         'k' => args.kill = true,
+                        'o' => args.open = true,
                         'h' => {
                             println!("{}", HELP);
                             std::process::exit(0);

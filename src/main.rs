@@ -42,7 +42,7 @@ fn main() -> Result<()> {
         "S",
         &std::env::var("LACHAT_SESSION").unwrap_or(DEFAULT_SESSION_PATH.into()),
     ))
-        .map_err(|e| format!("failed to initialize session: {}", e))?;
+    .map_err(|e| format!("failed to initialize session: {}", e))?;
 
     let mut state = match session.read_state()? {
         Some(state) => state,
@@ -241,6 +241,10 @@ fn main() -> Result<()> {
         process::kill_pid(state.pid).map_err(|e| format!("failed to stop llama-server: {}", e))?;
         state.pid = 0;
         session.write_state(&state)?;
+    } else {
+        if args.open {
+            utils::open_url(&format!("http://{}:{}", state.host, state.port))?
+        }
     }
 
     Ok(())
