@@ -29,7 +29,7 @@ fn launch_llama_server(args: &[String]) -> Result<u32> {
 #[inline(always)]
 fn wait_for_server(host: &str, port: u16) -> Result<()> {
     laserv::Client::new(format!("http://{}:{}", host, port))
-        .wait(15_000)
+        .wait(20_000)
         .map(|_| ())
         .map_err(|e| format!("llama-server did not become ready: {}", e).into())
 }
@@ -52,7 +52,7 @@ fn main() -> Result<()> {
             let pid = launch_llama_server(&args.llama_server_args)?;
             wait_for_server(&host, port)?;
 
-            let state = session::State::new(pid, host.into(), port);
+            let state = session::State::new(pid, host.into(), port, None);
             session.write_state(&state)?;
             state
         }
@@ -60,8 +60,9 @@ fn main() -> Result<()> {
 
     if !args.llama_server_args.is_empty() {
         let (host, port) = args.extract_serv_addr_or_default(&state.host, state.port);
+        let models_dir = args.extract_models_dir();
 
-        if host != state.host || port != state.port {
+        if host != state.host || port != state.port || models_dir != state.models_dir {
             if state.pid != 0 {
                 process::kill_pid(state.pid)
                     .map_err(|e| format!("failed to stop previous llama-server: {}", e))?;
@@ -76,15 +77,21 @@ fn main() -> Result<()> {
             let pid = launch_llama_server(&extended_args)?;
             wait_for_server(&host, port)?;
 
-            state = session::State::new(pid, host.into(), port);
+            state = session::State::new(pid, host.into(), port, models_dir);
             session.write_state(&state)?;
         }
     }
 
     if state.pid == 0 {
+        let port_str = state.port.to_string();
+        let mut s_args = ["--host", &state.host, "--port", &port_str].to_vec();
+        if let Some(ref models_dir) = state.models_dir {
+            s_args.push("--models-dir");
+            s_args.push(models_dir);
+        }
         let extended_args = utils::extend_args(
             &args.llama_server_args,
-            &["--host", &state.host, "--port", &state.port.to_string()],
+            &s_args,
         );
         let pid = launch_llama_server(&extended_args)?;
         wait_for_server(&state.host, state.port)?;

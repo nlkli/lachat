@@ -19,7 +19,9 @@ pub struct Args {
 }
 
 const VERSION: &str = "lachat 0.1.0";
-const HELP: &str = r#"lachat — minimal CLI client for llama-server
+const HELP: &str = r#"
+lachat — minimal CLI client for llama-server
+https://github.com/nlkli/lachat
 USAGE:
   lachat [OPTIONS] [PROMPT...] -- [LLAMA_SERVER_ARGS...]
 OPTIONS:
@@ -75,7 +77,8 @@ EXAMPLES:
   lachat hello
   lachat -m qwen -c mychat -p "main.rs" -p "refactor this code"
   cat main.go | lachat -s system.txt
-  lachat -- --host 127.0.0.1 --port 5050"#;
+  lachat -- --host 127.0.0.1 --port 5050
+"#;
 
 impl Args {
     pub fn parse() -> Self {
@@ -249,6 +252,13 @@ impl Args {
             .and_then(|v| v.parse::<u16>().ok());
 
         (host, port)
+    }
+
+    pub fn extract_models_dir<'a>(&self) -> Option<String> {
+        self.llama_server_args
+            .iter()
+            .position(|a| a == "--models-dir")
+            .and_then(|i| self.llama_server_args.get(i + 1).map(String::clone))
     }
 
     pub fn extract_serv_addr_or_default<'a>(&'a self, host: &'a str, port: u16) -> (&'a str, u16) {

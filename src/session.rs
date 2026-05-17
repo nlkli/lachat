@@ -11,11 +11,12 @@ pub struct State {
     pub pid: u32,
     pub host: String,
     pub port: u16,
+    pub models_dir: Option<String>,
 }
 
 impl State {
-    pub fn new(pid: u32, host: String, port: u16) -> Self {
-        Self { pid, host, port }
+    pub fn new(pid: u32, host: String, port: u16, models_dir: Option<String>) -> Self {
+        Self { pid, host, port, models_dir }
     }
 }
 

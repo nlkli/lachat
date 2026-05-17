@@ -8,6 +8,7 @@ If no [llama-server](https://github.com/ggml-org/llama.cpp) is running for the c
 
 ```text
 lachat — minimal CLI client for llama-server
+https://github.com/nlkli/lachat
 USAGE:
   lachat [OPTIONS] [PROMPT...] -- [LLAMA_SERVER_ARGS...]
 OPTIONS:
